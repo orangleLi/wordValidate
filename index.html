@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>点击文字验证码</title>
+	<style>
+		#validate{
+			background: #855;
+		}
+		.notice{
+			color: #67c23a;
+		    background: #f0f9eb;
+		    border-color: #c2e7b0;
+		    display: inline-block;
+		    line-height: 1;
+		    white-space: nowrap;
+		    cursor: pointer;
+		    border: 1px solid #dcdfe6;
+		    text-align: center;
+		    box-sizing: border-box;
+		    outline: none;
+		    margin: 0;
+		    font-weight: 500;
+		    padding: 12px 20px;
+		    font-size: 14px;
+		    border-radius: 4px;
+		    position: fixed;
+		    top: -999px;
+			left: 50%;
+		    transform: translateX(-50%);
+			opacity: 0;
+			display: none;
+		}
+		@keyframes moveIn {
+			5%, 95%{
+				top: 20px;
+			    opacity: 1;
+			    display: block;
+			}
+		}
+	</style>
+</head>
+<body>
+	<div class="main-box">
+		<span class="title"></span>
+		<div class="validate-box">
+			<canvas id="validate"></canvas>
+		</div>
+		<button class="submit">提交</button>
+		<button class="refresh">刷新</button>
+	</div>
+	<div class="notice">验证成功</div>
+</body>
+<script>
+	function wordValidate() {
+		this.wordArr = []; // 点击验证的汉字数组
+		this.wordNum = 3; // 点击验证的汉字个数
+		this.trueNum = 5; // 实际生成的汉字个数
+		this.rangeMin = 13312; // 汉字unicode编码范围最小值
+		this.rangeMax = 40917; // 最大值
+		this.canvasW = 300; // canvas宽
+		this.canvasH = 180; // canvas高
+		this.fontSize = 20; // 汉字大小
+		this.posArr = []; // 点击验证的汉字对应的正确位置
+		this.clickTag = 0; // 当前点击第几次
+		this.valite = true; // 判断当前点击的点是否在对应的汉字矩形框内，返回布尔值
+
+		this.dom = document.getElementById('validate');
+		this.ctx = this.dom.getContext('2d');
+		this.image = new Image();
+		this.image.src= './bg.png';
+	}
+	wordValidate.prototype = {
+		init: function() {
+			this.generateWord();
+			this.fill();
+			document.getElementsByClassName('submit')[0].addEventListener('click', () => {
+				let notice = document.getElementsByClassName('notice')[0];
+				if (this.clickTag === this.wordNum && this.valite) {
+					notice.innerHTML = '验证成功';
+					notice.style.display = 'block';
+					notice.style.animation = 'moveIn 4s'
+				} else {
+					notice.innerHTML = '验证失败';
+					notice.style.display = 'block';
+					notice.style.animation = 'moveIn 4s'
+				}
+			})
+			document.getElementsByClassName('refresh')[0].addEventListener('click', () => {
+				this.posArr = [];
+				this.wordArr = [];
+				this.generateWord();
+				this.fill(true);
+			})
+
+		},
+		// 渲染页面汉字
+		fill(refresh) {
+			console.log(refresh)
+			document.getElementsByClassName('title')[0].innerHTML = "请依次点击：" + (this.wordArr.slice(0, this.wordNum).join('，'));
+
+			this.dom.width = this.canvasW;this.dom.height = this.canvasH;
+			this.dom.addEventListener('click', (e) => {
+				this.clickWord(e);
+			});
+			if (refresh) {
+				this.drawCanvas()
+			} else {
+				this.image.onload = () => {					
+					this.drawCanvas()
+				}
+			}
+		},
+		drawCanvas() {
+			this.ctx.drawImage(this.image, 0, 0, this.canvasW, this.canvasH)
+			this.ctx.fillStyle = "#2eb2f1";
+			this.ctx.font = this.fontSize + 'px Arial';
+			for (let i = 0; i < this.trueNum; i++) {
+				let x =  parseInt(Math.random()*((this.canvasW - this.fontSize)+1),10);
+				let y =  parseInt(Math.random()*(this.canvasH-this.fontSize+1)+this.fontSize,10);
+				this.ctx.fillText(this.wordArr[i], x, y);
+				this.posArr.push([x,y])
+			}
+		},
+		// 点击事件
+		clickWord (e) {
+			if (this.clickTag < this.wordNum) {
+				let rectPos = this.posArr[this.clickTag];
+				let res = this.pointInRext(e.offsetX, e.offsetY, rectPos[0], rectPos[1] - this.fontSize, rectPos[0] + this.fontSize, rectPos[1]);
+				if (!res) {
+					this.valite = res;
+				}
+				this.clickTag++;
+			}
+		},
+		// 判断当前点击的点是否在对应的汉字矩形框内，返回布尔值
+		pointInRext(pointX, pointY, rectLTX, rectLTY, rectRBX, rectRBY) {
+			this.ctx.strokeStyle="#f00";
+			this.ctx.strokeRect(pointX - (this.fontSize/2), pointY - (this.fontSize/2), this.fontSize, this.fontSize);
+			if  (pointX > rectLTX && pointX < rectRBX && pointY > rectLTY && pointY < rectRBY) {
+				return true;
+			} else {
+				return false;
+			}
+		},
+		// 随机生成汉字
+		generateWord: function(argument) {
+			for (let i = 0; i < this.trueNum; i++) {
+		    	let num = parseInt(Math.random()*(this.rangeMax-this.rangeMin+1)+this.rangeMin,10);
+				let code = parseInt(num,10).toString(16);
+				this.wordArr.push(this.ToGB2312("\\u"+code))
+			}
+		},
+		// 汉字转unicode
+		ToUnicode:function(str){
+          return escape(str).toLocaleLowerCase().replace(/%u/gi,'\\u');
+        },
+        // unicode转汉字
+        ToGB2312:function(str){
+          return unescape(str.replace(/\\u/gi,'%u'));
+        }
+	}
+	new wordValidate().init()
+</script>
+</html>
